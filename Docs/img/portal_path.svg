@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 340" width="760" height="340" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif" font-size="13">
+  <rect width="760" height="340" fill="#ffffff"/>
+  <text x="20" y="24" font-size="15" font-weight="bold">房间—门户路径、程差与虚拟声源</text>
+  <rect x="40" y="50" width="300" height="270" fill="#f5f7fa" stroke="#555" stroke-width="6"/>
+  <rect x="340" y="50" width="380" height="270" fill="#f5f7fa" stroke="#555" stroke-width="6"/>
+  <rect x="334" y="200" width="12" height="70" fill="#ffffff"/>
+  <line x1="340" y1="200" x2="340" y2="270" stroke="#d08a2e" stroke-width="3" stroke-dasharray="5 4"/>
+  <text x="352" y="268" fill="#d08a2e">门洞</text>
+  <text x="56" y="76" fill="#777">房间 B（声源）</text>
+  <text x="600" y="76" fill="#777">房间 A（听者）</text>
+  <circle cx="120" cy="110" r="9" fill="#d04a2e"/>
+  <text x="96" y="96" fill="#d04a2e">声源 S</text>
+  <circle cx="620" cy="140" r="9" fill="#2e6fd0"/>
+  <text x="634" y="134" fill="#2e6fd0">听者 L</text>
+  <line x1="120" y1="110" x2="620" y2="140" stroke="#999" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="380" y="114" fill="#777">直线距离 d（被墙挡住）</text>
+  <polyline points="120,110 342,204 620,140" fill="none" stroke="#3c9a6a" stroke-width="3"/>
+  <circle cx="342" cy="204" r="5" fill="#3c9a6a"/>
+  <text x="350" y="228" fill="#3c9a6a">拉紧到门框边缘</text>
+  <text x="56" y="186" fill="#3c9a6a">路径长度 p = |S→门| + |门→L|</text>
+  <line x1="620" y1="140" x2="226" y2="230" stroke="#9b62b5" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <circle cx="226" cy="230" r="8" fill="none" stroke="#9b62b5" stroke-width="2.5"/>
+  <text x="56" y="262" fill="#9b62b5">虚拟声源：沿最后一段方向，</text>
+  <text x="56" y="280" fill="#9b62b5">距听者 p，距离衰减自然正确</text>
+  <rect x="392" y="240" width="320" height="84" rx="6" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="404" y="262">程差 δ = p − d</text>
+  <text x="404" y="280">菲涅耳数 N = 2δf / c（每个频段单独算）</text>
+  <text x="404" y="298">损失 = 5 + 20·lg( √(2πN) / tanh√(2πN) )</text>
+  <text x="404" y="316">上限 24 dB；看得见声源时损失为 0</text>
+</svg>

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>声音遮挡 / 阻挡 / 衍射：UE5 落地要点</title><style>
+:root{--bg:#fbfaf7;--fg:#1f2328;--muted:#5d6670;--line:#e3e0d8;--accent:#b8621b;--code:#f2efe8;--panel:#ffffff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#e6e6e3;--muted:#9aa3ad;--line:#2d3138;--accent:#e39a52;--code:#20242a;--panel:#1d2025;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#e6e6e3;--muted:#9aa3ad;--line:#2d3138;--accent:#e39a52;--code:#20242a;--panel:#1d2025;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 "Microsoft YaHei","PingFang SC","Noto Sans CJK SC",system-ui,sans-serif}
+.wrap{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;max-width:1240px;margin:0 auto;padding:40px 24px 80px}
+nav{position:sticky;top:24px;align-self:start;font-size:14px}
+nav .t{font-weight:700;margin-bottom:8px;color:var(--muted);letter-spacing:.05em}
+nav ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+nav li a{display:block;padding:4px 12px;color:var(--muted);text-decoration:none}
+nav li a:hover{color:var(--accent)}
+main{min-width:0}
+main>p,main>ul,main>ol,main>h2,main>h3,header{max-width:46em}
+header h1{font-size:30px;line-height:1.3;margin:0 0 8px;text-wrap:balance}
+header .sub{color:var(--muted);margin:0 0 28px}
+h2{font-size:22px;margin:48px 0 12px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:18px;margin:28px 0 8px}
+p,li{margin:8px 0}
+code{font-family:"Cascadia Code",Consolas,monospace;font-size:.88em;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;max-width:60em}
+pre code{background:none;padding:0;font-size:13.5px;line-height:1.6}
+table{border-collapse:collapse;margin:12px 0 20px;font-size:14.5px;display:block;overflow-x:auto;max-width:100%}
+th,td{border:1px solid var(--line);padding:6px 12px;text-align:left;vertical-align:top}
+th{background:var(--code)}
+td{font-variant-numeric:tabular-nums}
+.diagram{margin:20px 0 28px;max-width:62em}
+.diagram svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px;background:#fff}
+.diagram figcaption{font-size:13px;color:var(--muted);margin-top:6px}
+a{color:var(--accent)}
+@media (max-width:820px){.wrap{grid-template-columns:1fr;gap:16px;padding:24px 16px}nav{position:static}}
+</style></head>
+<body><div class="wrap">
+<nav><div class="t">目录</div><ol><li><a href="#s1">1. 先定结构：一个声源三条声部</a></li>
+<li><a href="#s2">2. 几何准备</a></li>
+<li><a href="#s3">3. 单射线与多射线（同一空间内的阻挡）</a></li>
+<li><a href="#s4">4. 房间—门户路径与衍射</a></li>
+<li><a href="#s5">5. 穿墙透射</a></li>
+<li><a href="#s6">6. 房间混响耦合</a></li>
+<li><a href="#s7">7. 时间平滑</a></li>
+<li><a href="#s8">8. GPU 波动烘焙</a></li>
+<li><a href="#s9">9. Steam Audio 4.8.1 接入 UE 5.8</a></li>
+<li><a href="#s10">10. 坑点清单</a></li>
+<li><a href="#s11">11. 手机端</a></li>
+<li><a href="#s12">12. 自测方法</a></li></ol></nav>
+<main><header><h1>声音遮挡 / 阻挡 / 衍射：UE5 落地要点</h1><p class="sub">GTL-Audio-Occlusion · 技术落地文档 · UE 5.8</p></header>
+<p>本文把 GTL-Audio-Occlusion 里每一层的做法、参数和踩过的坑整理成可以直接搬进项目的形式。代码位置都写在小标题后面，路径相对 <code>Source/AudioOcclusion/</code>。引擎版本 UE 5.8，测试机 i7-13700KF + RTX 3060。</p>
+<figure class="diagram" role="img" aria-label="运行时数据流"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif" font-size="13">
+  <rect width="960" height="400" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker>
+  </defs>
+  <text x="20" y="24" font-size="15" font-weight="bold">运行时数据流</text>
+  <g stroke="#555" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M200 90 H246"/>
+    <path d="M440 90 H486"/>
+    <path d="M590 140 V176"/>
+    <path d="M540 240 L130 276"/>
+    <path d="M590 240 V276"/>
+    <path d="M640 240 L850 276"/>
+  </g>
+  <rect x="20" y="40" width="180" height="100" rx="8" fill="#eef3f8" stroke="#7a8ea6"/>
+  <text x="34" y="64" font-weight="bold">场景几何</text>
+  <text x="34" y="86" fill="#333">Acoustic 碰撞通道</text>
+  <text x="34" y="104" fill="#333">房间盒 AAcousticRoom</text>
+  <text x="34" y="122" fill="#333">门洞 AAcousticPortal</text>
+
+  <rect x="250" y="40" width="190" height="100" rx="8" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="264" y="64" font-weight="bold">每个声源求解（15 Hz）</text>
+  <text x="264" y="86" fill="#333">多射线、门户路径、衍射</text>
+  <text x="264" y="104" fill="#333">透射、波动烘焙查询</text>
+  <text x="264" y="122" fill="#333">或读 Steam Audio 结果</text>
+
+  <rect x="490" y="40" width="200" height="100" rx="8" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="504" y="64" font-weight="bold">FAcousticResult</text>
+  <text x="504" y="86" fill="#333">路径增益（三个频段，dB）</text>
+  <text x="504" y="104" fill="#333">虚拟声源位置、透射增益</text>
+  <text x="504" y="122" fill="#333">湿声电平、所在房间</text>
+
+  <rect x="490" y="180" width="200" height="60" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="504" y="204" font-weight="bold">时间平滑</text>
+  <text x="504" y="224" fill="#333">dB 一阶 τ=0.2 s，方位角滑动</text>
+
+  <rect x="20" y="280" width="220" height="58" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="34" y="302" font-weight="bold">路径声部</text>
+  <text x="34" y="322" fill="#333">放在虚拟声源处</text>
+  <rect x="490" y="280" width="200" height="58" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="504" y="302" font-weight="bold">透射声部</text>
+  <text x="504" y="322" fill="#333">真实位置，与路径按能量相加</text>
+  <rect x="740" y="280" width="200" height="58" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="754" y="302" font-weight="bold">Steam 声部</text>
+  <text x="754" y="322" fill="#333">Steam 遮挡插件直接处理</text>
+
+  <rect x="20" y="352" width="920" height="36" rx="6" fill="#f7eefa" stroke="#9b62b5"/>
+  <text x="34" y="375" fill="#333">每个声部：中频 → 音量，低/高频 → 源效果 EQ，深度高切 → 低通 ｜ Steam HRTF 空间化 → 主混音 ｜ 湿声 → 声源所在房间的混响子混音</text>
+</svg>
+<figcaption>运行时数据流</figcaption></figure>
+<h2 id="s1">1. 先定结构：一个声源三条声部</h2>
+<p>每个声源组件（<code>AcousticEmitterComponent</code>）创建三个同步播放同一素材的 <code>UAudioComponent</code>：</p>
+<table>
+<thead>
+<tr>
+<th>声部</th>
+<th>位置</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>路径声部</td>
+<td>虚拟声源（门口方向，距离 = 路径长度）</td>
+<td>绕门传来的主声音</td>
+</tr>
+<tr>
+<td>透射声部</td>
+<td>声源真实位置</td>
+<td>穿墙分量，和路径声部在空气里按能量相加</td>
+</tr>
+<tr>
+<td>Steam 声部</td>
+<td>声源真实位置，挂 Steam 遮挡插件</td>
+<td>方案对照用，项目里二选一即可</td>
+</tr>
+</tbody>
+</table>
+<p>不用的声部把音量压到 0.0005，而不是停掉，这样切换方案时循环素材不会错位。这些声音资源要设成 <code>PLAY_WHEN_SILENT</code>，否则被虚拟化后再恢复会错相位。一次性声音（脚步）用同一套声部：每次落地时三条声部一起 <code>Play()</code>，增益、滤波和位置由求解器持续写在组件上，重放时自动生效。</p>
+<p><strong>分频段增益的施加方式</strong>（<code>AcousticEmitterComponent::ApplyBands</code>）：求解器给出 250 Hz / 1 kHz / 4 kHz 三个频段的 dB。中频直接换算成 <code>VolumeMultiplier</code>；低频和高频相对中频的差值写进每个声部<strong>独立一份</strong>的 <code>USourceEffectEQPreset</code>（180 Hz、4.5 kHz 两个峰值段，带宽 2 个八度）；高频比中频低 10 dB 以上时，再开组件自带的一阶低通，截止频率 <code>20 kHz × 2^((ΔHigh+10)/4)</code>，下限 400 Hz。EQ 预设必须每个声部 <code>NewObject</code> 一份，共享会互相覆盖。</p>
+<p><strong>求解频率</strong>：所有声源 15 Hz 轮流求解（<code>SolveRateHz</code>），结果再经平滑。6 个声源在测试机上每帧 0.06~0.9 ms（波动烘焙模式最高）。</p>
+<h2 id="s2">2. 几何准备</h2>
+<ul>
+<li><strong>专用碰撞通道</strong>：<code>DefaultEngine.ini</code> 新建 <code>ECC_GameTraceChannel1</code>（名为 Acoustic，默认 Block）。所有声学射线都走这个通道，角色胶囊、家具、灯具对它 Ignore，墙、门、柱子 Block。</li>
+<li><strong>坑</strong>：代码里改碰撞响应的 <code>UStaticMeshComponent</code> 要先 <code>bUseDefaultCollision = false</code> 并设 <code>BlockAll</code> profile，否则关卡重新加载后按网格默认碰撞恢复，家具会挡住声源。</li>
+<li><strong>材质</strong>：用组件标签 <code>TL_Wood</code> / <code>TL_Glass</code> / <code>TL_Door</code> / <code>TL_Furniture</code> 标出隔声材质，没标的按混凝土。分频隔声量（dB，250 / 1k / 4k）：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>材质</th>
+<th>250 Hz</th>
+<th>1 kHz</th>
+<th>4 kHz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>混凝土</td>
+<td>42</td>
+<td>52</td>
+<td>60</td>
+</tr>
+<tr>
+<td>木隔墙</td>
+<td>14</td>
+<td>22</td>
+<td>30</td>
+</tr>
+<tr>
+<td>玻璃</td>
+<td>18</td>
+<td>26</td>
+<td>30</td>
+</tr>
+<tr>
+<td>木门</td>
+<td>16</td>
+<td>22</td>
+<td>27</td>
+</tr>
+<tr>
+<td>家具</td>
+<td>4</td>
+<td>8</td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>房间与门洞</strong>：<code>AAcousticRoom</code> 是一个轴对齐盒子（带混响时间、湿声电平、是否室外）；<code>AAcousticPortal</code> 是门洞盒子，前向 = 法线，开度由门的转角换算（<code>sin</code> 映射，转到 70° 视为全开）。门洞两侧的房间在 BeginPlay 时沿法线 ±60 cm 探测自动连接。</li>
+</ul>
+<h2 id="s3">3. 单射线与多射线（同一空间内的阻挡）</h2>
+<p><code>AcousticSubsystem::MultiRayFraction</code></p>
+<ul>
+<li>引擎原生遮挡（<code>bEnableOcclusion</code>）只有一条射线、二值结果。默认参数是低通 20 kHz、音量 1.0，<strong>打开后什么都不会变</strong>，必须改成例如 600 Hz / 0.25；本工程设 <code>OcclusionTraceChannel = Acoustic</code>、插值 0.1 s。实测被挡时整体低约 12 dB。</li>
+<li>多射线：以声源为中心取二十面体 12 个方向、半径 40 cm 的点，先剔除“从声源到采样点就被挡”的点（贴墙的声源不会有一半射线打进墙里），再统计到听者被挡的比例 F。</li>
+<li>只开多射线时：增益 = (−10F, −18F, −26F) dB。</li>
+<li>开了门户路径时，多射线只用来算同一房间内的阻挡：(−3F, −8F, −15F) dB，只衰减直达声。</li>
+<li>声源离地太近时，下半圈采样点会进地板。脚步声源放在离地约 30 cm。</li>
+</ul>
+<h2 id="s4">4. 房间—门户路径与衍射</h2>
+<p><code>AcousticSubsystem::FindPortalPath</code>、<code>SolveCustom</code>、<code>KurzeAndersonDb</code></p>
+<figure class="diagram" role="img" aria-label="门户路径与程差"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 340" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif" font-size="13">
+  <rect width="760" height="340" fill="#ffffff"/>
+  <text x="20" y="24" font-size="15" font-weight="bold">房间—门户路径、程差与虚拟声源</text>
+  <rect x="40" y="50" width="300" height="270" fill="#f5f7fa" stroke="#555" stroke-width="6"/>
+  <rect x="340" y="50" width="380" height="270" fill="#f5f7fa" stroke="#555" stroke-width="6"/>
+  <rect x="334" y="200" width="12" height="70" fill="#ffffff"/>
+  <line x1="340" y1="200" x2="340" y2="270" stroke="#d08a2e" stroke-width="3" stroke-dasharray="5 4"/>
+  <text x="352" y="268" fill="#d08a2e">门洞</text>
+  <text x="56" y="76" fill="#777">房间 B（声源）</text>
+  <text x="600" y="76" fill="#777">房间 A（听者）</text>
+  <circle cx="120" cy="110" r="9" fill="#d04a2e"/>
+  <text x="96" y="96" fill="#d04a2e">声源 S</text>
+  <circle cx="620" cy="140" r="9" fill="#2e6fd0"/>
+  <text x="634" y="134" fill="#2e6fd0">听者 L</text>
+  <line x1="120" y1="110" x2="620" y2="140" stroke="#999" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="380" y="114" fill="#777">直线距离 d（被墙挡住）</text>
+  <polyline points="120,110 342,204 620,140" fill="none" stroke="#3c9a6a" stroke-width="3"/>
+  <circle cx="342" cy="204" r="5" fill="#3c9a6a"/>
+  <text x="350" y="228" fill="#3c9a6a">拉紧到门框边缘</text>
+  <text x="56" y="186" fill="#3c9a6a">路径长度 p = |S→门| + |门→L|</text>
+  <line x1="620" y1="140" x2="226" y2="230" stroke="#9b62b5" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <circle cx="226" cy="230" r="8" fill="none" stroke="#9b62b5" stroke-width="2.5"/>
+  <text x="56" y="262" fill="#9b62b5">虚拟声源：沿最后一段方向，</text>
+  <text x="56" y="280" fill="#9b62b5">距听者 p，距离衰减自然正确</text>
+  <rect x="392" y="240" width="320" height="84" rx="6" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="404" y="262">程差 δ = p − d</text>
+  <text x="404" y="280">菲涅耳数 N = 2δf / c（每个频段单独算）</text>
+  <text x="404" y="298">损失 = 5 + 20·lg( √(2πN) / tanh√(2πN) )</text>
+  <text x="404" y="316">上限 24 dB；看得见声源时损失为 0</text>
+</svg>
+<figcaption>门户路径与程差</figcaption></figure>
+<ol>
+<li>用房间盒查出声源房间和听者房间。同一房间时只做第 3 节的阻挡。</li>
+<li>图的节点是声源、听者和每个开着的门洞（门开度低于 2% 视为不通），两个节点属于同一房间就相连，边权为直线距离，Dijkstra 找最短的门洞序列。</li>
+<li>拉紧：路径点先放在门洞中心（耳朵高度），再迭代 3 遍：每个门洞点取“前一点—后一点连线”与门洞平面的交点，夹到开口范围内（<code>ClosestPointOnOpening</code>），得到贴着门框的折线。</li>
+<li>视线捷径：声源到听者的直线如果本身没被挡（正好对着门口），损失直接为 0，否则会在“几乎看得见”的位置凭空衰减 5 dB 左右。</li>
+<li>衍射损失（每个频段）：程差 δ = 路径长 − 直线距离，菲涅耳数 N = 2δf/c，<code>损失 = 5 + 20·lg(√(2πN) / tanh√(2πN))</code>，上限 24 dB。对照的角度映射按累计拐角 θ：(−4, −10, −18) × min(θ, 270°)/180°。</li>
+<li>门的开度另算：每个经过的门洞叠加 <code>10·lg(max(开度, 0.03))</code> dB。</li>
+<li>虚拟声源：从听者沿“路径最后一段”的方向放到距离 = 路径长度处。这样引擎的距离衰减和 HRTF 方向都自然正确，不用另算。</li>
+</ol>
+<h2 id="s5">5. 穿墙透射</h2>
+<p><code>AcousticSubsystem::TransmissionLoss</code></p>
+<p>只在直达声被挡时算：沿声源到听者的直线反复做射线检测，每碰到一个构件就加上它的隔声量并把它加入忽略列表，最多 10 层，总量封顶 60 dB（侧向传声）。结果作为<strong>透射声部</strong>在声源真实位置播放，和路径声部是两条独立的声音，在空气里按能量相加。门全关时路径声部静音，只剩透射声部。</p>
+<h2 id="s6">6. 房间混响耦合</h2>
+<p><code>AcousticSubsystem::InitAudioGraph</code>、<code>ApplyResult</code>、<code>UpdateRoomCoupling</code></p>
+<ul>
+<li>每个室内房间一个运行时 <code>USoundSubmix</code>，效果链为 [<code>SubmixEffectReverb</code>（湿 1、干 0，衰减时间取房间参数）→ <code>SubmixEffectFilter</code> 低通]，用 <code>FAudioDevice::RegisterSoundSubmix</code> 注册。</li>
+<li>每个声源只发送到<strong>自己所在房间</strong>的子混音，其他房间发送 0。</li>
+<li>每个房间子混音的输出音量和低通代表“这个房间的混响传到听者房间还剩多少”：沿门户路径每过一个门 −6 dB 再加 <code>10·lg(开度)</code>，低通 <code>9 kHz / (1 + 0.6 × 程差米数)</code>（900 Hz ~ 20 kHz）；不连通时按墙体隔声，低通 500 Hz。听者所在房间为 0 dB、20 kHz。</li>
+<li><strong>重要的坑（UE 5.8）</strong>：对 HRTF（插件空间化）的声源使用 <code>ESubmixSendStage::PreDistanceAttenuation</code> 发送时，混音器把单声道的衰减前缓冲当成双声道读，产生 NaN，整个主混音会变成静音（录出来是满幅直流）。本工程改为衰减后发送，再把距离增益除回去，效果等价：</li>
+</ul>
+<pre><code class="language-cpp">const float G = Attenuation.Evaluate(FTransform(VoicePos), ListenerPos, 1.f);   // FSoundAttenuationSettings
+Info.SendLevel = FMath::Min(WetLin / FMath::Max(G, 0.02f), 50.f);
+Info.DisableManualSendClamp = true;                                            // 允许 &gt; 1
+Info.SendStage = ESubmixSendStage::PostDistanceAttenuation;
+AudioDevice-&gt;SendCommandToActiveSounds(Comp-&gt;GetAudioComponentID(), [Info](FActiveSound&amp; AS) { AS.SetSubmixSend(Info); });
+</code></pre>
+<p><code>SetSubmixSend</code> 对一次性声音也要每次求解都重发（每次 <code>Play()</code> 都会生成新的 ActiveSound）。</p>
+<h2 id="s7">7. 时间平滑</h2>
+<p>增益在 dB 域做一阶平滑，时间常数 0.2 s。虚拟声源位置不能直接线性插值（会从墙里穿过去），要把“方向”和“距离”分开：方向用四元数 Slerp，距离线性插值。目标位置非法（NaN）或离听者不足 1 cm 时退回线性插值，避免 <code>FindBetweenNormals</code> 遇到零向量。</p>
+<h2 id="s8">8. GPU 波动烘焙</h2>
+<p><code>Source/OcclusionWave</code>（RDG 计算着色器）、<code>Shaders/WaveFDTD.usf</code>、<code>WaveBakeActor</code></p>
+<figure class="diagram" role="img" aria-label="波动烘焙"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 305" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif" font-size="13">
+  <rect width="1000" height="305" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker>
+  </defs>
+  <text x="20" y="24" font-size="15" font-weight="bold">GPU 波动烘焙：离线与运行时</text>
+  <text x="20" y="52" fill="#777">离线（每个探针一次）</text>
+  <g stroke="#555" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M245 101 H261"/><path d="M488 101 H504"/><path d="M731 101 H747"/>
+    <path d="M245 251 H261"/><path d="M488 251 H504"/><path d="M731 251 H747"/>
+  </g>
+  <rect x="20" y="62" width="225" height="78" rx="8" fill="#eef3f8" stroke="#7a8ea6"/>
+  <text x="32" y="86" font-weight="bold">体素化</text>
+  <text x="32" y="106" fill="#333">格子 13.7 cm = c ÷ (5 × 500 Hz)</text>
+  <text x="32" y="124" fill="#333">薄墙加厚到 2 格，门板不算</text>
+  <rect x="263" y="62" width="225" height="78" rx="8" fill="#eef3f8" stroke="#7a8ea6"/>
+  <text x="275" y="86" font-weight="bold">放探针</text>
+  <text x="275" y="106" fill="#333">按房间均匀铺：室内 2.6 m</text>
+  <text x="275" y="124" fill="#333">室外 5 m，门洞两侧各 1 个</text>
+  <rect x="506" y="62" width="225" height="78" rx="8" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="518" y="86" font-weight="bold">FDTD 脉冲（RDG 计算着色器）</text>
+  <text x="518" y="106" fill="#333">7 点模板，Courant 0.5，0.92 s</text>
+  <text x="518" y="124" fill="#333">刚性墙 + 边界吸收层</text>
+  <rect x="749" y="62" width="231" height="78" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="761" y="86" font-weight="bold">55 cm 采样网格记能量包络</text>
+  <text x="761" y="106" fill="#333">首达：超过参考峰值 −50 dB</text>
+  <text x="761" y="124" fill="#333">LDS 取 5 ms+4σ，LER 取至 200 ms</text>
+
+  <text x="20" y="202" fill="#777">运行时（每个声源，15 Hz）</text>
+  <rect x="20" y="212" width="225" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="32" y="236" font-weight="bold">选探针</text>
+  <text x="32" y="256" fill="#333">与听者同房间、能看见听者</text>
+  <text x="32" y="274" fill="#333">最多 3 个，按 1/r² 加权</text>
+  <rect x="263" y="212" width="225" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="275" y="236" font-weight="bold">互易性读值</text>
+  <text x="275" y="256" fill="#333">探针当耳朵，在声源位置三线性</text>
+  <text x="275" y="274" fill="#333">插值读 首达 / LDS / LER</text>
+  <rect x="506" y="212" width="225" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="518" y="236" font-weight="bold">换算成播放参数</text>
+  <text x="518" y="256" fill="#333">额外损失 = 自由场(p) − LDS</text>
+  <text x="518" y="274" fill="#333">湿声 = LER − LDS − 14 dB</text>
+  <rect x="749" y="212" width="231" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="761" y="236" font-weight="bold">到达方向</text>
+  <text x="761" y="256" fill="#333">沿首达时间梯度从声源往回走</text>
+  <text x="761" y="274" fill="#333">看见听者即停，最后拐点 = 来向</text>
+</svg>
+<figcaption>波动烘焙</figcaption></figure>
+<p><strong>求解器</strong>：压力形式的 3D FDTD，7 点模板，蛙跳积分，<code>λ² = (cΔt/Δx)² = 0.25</code>（Courant 0.5，三维稳定上限 0.577）。格子 Δx = c / (5 × f_max)，f_max = 500 Hz 时为 13.7 cm。墙格用镜像邻居（刚性 Neumann 边界），贴墙格每步乘 0.985 模拟吸收，域边界 10 格二次吸收层（最大 0.08）。声源为高斯脉冲，σ = √ln10 / (π f_max)，t0 = 5σ（Raghuvanshi &amp; Snyder 2014）。每个探针模拟 0.92 s（4600 步）。</p>
+<p><strong>体素化</strong>：只收标了 Acoustic 的网格组件（不含门板，门洞一律按打开烘焙），按包围盒转体素。厚度不足 2 格的墙沿最薄轴加厚到 2 格，否则声波会从一格厚的墙漏过去。</p>
+<p><strong>记录与归约</strong>：每 4 格取一个采样点（55 cm），每 6 步累加一次 p² 得到能量包络。CPU 端：
+- 参考电平：探针 0.8~1.8 m 处最强采样点的直达能量，换算成相对 1 m 自由场。
+- 首达时间：包络第一次超过参考峰值 −50 dB 的时间，减去 t0。
+- LDS（直达声）：首达后 5 ms + 4σ 窗内的能量；LER（早期反射）：其后到 200 ms。</p>
+<p><strong>探针</strong>：每个房间按盒子均匀铺（室内约 2.6 m，室外 5 m，保证窄走廊中线有一排），离墙至少 3 格；每个门洞两侧 75 cm 各加一个。本场景 90 个探针，测试机上烘焙约 98 秒（显卡被其他程序占用时会翻倍）。结果连同几何哈希存盘，几何不变时直接读取。</p>
+<p><strong>运行时查询</strong>：
+1. 选探针：与听者同一房间、到听者无遮挡的最多 3 个，按 1/r² 加权。只取最近的一个探针时，常会选到门洞对面另一个房间的探针，参数会跳。
+2. 互易性：探针当耳朵，在声源位置三线性插值读首达 / LDS / LER，加权混合。
+3. 额外损失 = 自由场(路径长) − LDS；湿声 = LER − LDS − 14 dB（限制在 −30 ~ −4 dB）。高频没有算到（f_max = 500 Hz），用“能解释这个低频损失的等效程差”代回 Kurze–Anderson 外推 1 kHz / 4 kHz。
+4. 方向：从声源沿首达时间梯度往回走（步长 20 cm，每步检查不穿实心体素），一旦能直接看到听者就停，最后一个拐点就是声音来向，虚拟声源放在这个方向、距离 = 首达时间 × c。
+5. 关门：烘焙时门是开的。运行时检查路径线段与门平面的<strong>交点</strong>是否落在门洞内（不能用线段中点：最后一段直连听者，可能很长），落在门洞内就叠加门的隔声量按开度插值。</p>
+<p><strong>为什么 500 Hz</strong>：每降一半 f_max，格子数和步数都减少，开销降到约 1/16。500 Hz 足够得到首达时间、直达能量和混响比，高频靠外推。要更准的高频就要提高 f_max，或像 Project Acoustics 那样上云烘焙。</p>
+<h2 id="s9">9. Steam Audio 4.8.1 接入 UE 5.8</h2>
+<ul>
+<li>官方预编译插件的 BuildId 与 5.8 不符，不能直接用。把 <code>steamaudio_unreal</code> 源码拷进工程 <code>Plugins/SteamAudio</code>，删掉 Binaries / Intermediate 后随工程一起编译；工程插件会覆盖引擎自带的旧版。只保留 <code>windows-x64</code>（和需要的 Android ABI）的 SDK 库，并相应修改 <code>SteamAudioSDK.Build.cs</code>。</li>
+<li><code>DefaultEngine.ini</code> 把 Windows 的空间化、混响、遮挡插件都设为 Steam Audio，采样率 48 kHz。</li>
+<li>静态几何导出 <code>SteamAudio::ExportStaticGeometryForLevel</code> 必须在后台线程调用，同时在游戏线程 <code>ProcessThreadUntilIdle</code> 泵消息，否则会死锁。会动的门要做成 <code>AStaticMeshActor</code> 加 <code>SteamAudioGeometryComponent</code>，用 <code>ExportDynamicObject</code> 单独导出。</li>
+<li>声源 Actor 挂 <code>USteamAudioSourceComponent</code>（遮挡用体积模式、半径 0.4 m、开启分频透射），声音的衰减设置挂 <code>USteamAudioOcclusionSettings</code>。遮挡值和三个频段的透射值可从源组件读出，透射值是振幅增益。</li>
+<li>本工程只用了 Steam 的直达声遮挡与透射，没有烘焙它的路径（pathing）探针，所以关门后它不会绕门。要绕门可以开 pathing，或者像对照组 6B 那样把自研门户路径叠加上去。</li>
+</ul>
+<h2 id="s10">10. 坑点清单</h2>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>原因</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>整个游戏没声音，录音是满幅直流</td>
+<td>HRTF 声源的衰减前子混音发送读错缓冲区，产生 NaN</td>
+<td>改衰减后发送并除回距离增益（第 6 节）；关键数值都做 NaN 检查</td>
+</tr>
+<tr>
+<td>开了引擎原生遮挡没变化</td>
+<td>默认低通 20 kHz、音量 1.0</td>
+<td>改成实际的低通和音量</td>
+</tr>
+<tr>
+<td>家具挡住了声源</td>
+<td>代码改的碰撞响应在加载后被网格默认碰撞覆盖</td>
+<td><code>bUseDefaultCollision = false</code> + <code>BlockAll</code></td>
+</tr>
+<tr>
+<td>后台窗口自动化测试录不到声音</td>
+<td><code>UnfocusedVolumeMultiplier</code> 默认为 0</td>
+<td>测试时 <code>FApp::SetUnfocusedVolumeMultiplier(1)</code></td>
+</tr>
+<tr>
+<td>按 F1 变成线框</td>
+<td>BaseInput.ini 把 F1~F5 绑成调试视图</td>
+<td><code>DefaultInput.ini</code> 加 <code>[/Script/Engine.PlayerInput] !DebugExecBindings=ClearArray</code></td>
+</tr>
+<tr>
+<td>关卡构建脚本存不了盘</td>
+<td>Git LFS 的 lockable 文件检出为只读</td>
+<td><code>git config lfs.setlockablereadonly false</code> 并清掉只读属性</td>
+</tr>
+<tr>
+<td>编辑器里删地图时断言 GC</td>
+<td>地图引用了刚导出的 Steam 资产</td>
+<td>构建前直接在磁盘上删 <code>.umap</code></td>
+</tr>
+<tr>
+<td>波动路径从墙里穿过去</td>
+<td>55 cm 采样网格的梯度跨过了薄墙</td>
+<td>每步检查是否穿过实心体素，失败时换角度</td>
+</tr>
+<tr>
+<td>烘焙路径乱跳</td>
+<td>只用一个最近探针，常落在相邻房间</td>
+<td>同房间多探针加权（第 8 节）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s11">11. 手机端</h2>
+<ul>
+<li>自研管线（射线 + 门户）开销小，可以直接用；射线数降到 4~6 条，求解频率降到 5~10 Hz，只给附近 8~16 个重要声源求解，其余只用距离衰减。</li>
+<li>三声部方案在手机上换成两声部（路径 + 透射），或只保留路径声部、用一个低通近似透射。HRTF 换成普通声像。</li>
+<li>波动烘焙只适合离线：烘焙结果每个探针约 0.3 MB（本场景 25 MB），手机上可以只存首达时间和 LDS 两个场、降到 8 位，或者烘焙后只导出“每个门洞的等效损失”给门户路径使用。</li>
+<li>Steam Audio 支持 Android arm64，但直达遮挡的体积采样和 HRTF 开销要实测，建议关体积采样、只用单射线。</li>
+</ul>
+<h2 id="s12">12. 自测方法</h2>
+<p><code>Tools/capture.ps1 [-Build] [-Only 22,25]</code> 以离屏窗口启动游戏，由 <code>CaptureDirector</code> 依次摆位、切换开关、注入真实按键和 Slate 鼠标点击，并：
+- 截图到 <code>Saved/Capture</code>；
+- 从主子混音挂监听器（<code>ISubmixBufferListener</code>）自己写 WAV，统计 RMS、峰值和非有限样本数；
+- 把每个声源的求解结果写进 <code>readout.txt</code>。</p>
+<p>第 25 组截图逐个开关录音（听者在客厅、琴房收音机独奏）：不处理 −46.9 dBFS；UE 原生被挡 −58.7；门户 + 程差 + 透射 −59.5；加混响 −57.8；波动烘焙关门不叠加衰减 −60.5、叠加后 −80.6；Steam 关门 −88.0。</p>
+</main></div></body></html>

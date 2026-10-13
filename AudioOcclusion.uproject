@@ -1,0 +1,30 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "GameTech-Lab: sound occlusion, obstruction and diffraction (rooms & portals, GPU wave bake, Steam Audio) as an interactive demo.",
+	"Modules": [
+		{
+			"Name": "OcclusionWave",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "AudioOcclusion",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine",
+				"UMG"
+			]
+		}
+	],
+	"Plugins": [
+		{ "Name": "SteamAudio", "Enabled": true },
+		{ "Name": "AudioGameplayVolume", "Enabled": true },
+		{ "Name": "Metasound", "Enabled": true },
+		{ "Name": "Synthesis", "Enabled": true },
+		{ "Name": "PythonScriptPlugin", "Enabled": true },
+		{ "Name": "EditorScriptingUtilities", "Enabled": true }
+	]
+}

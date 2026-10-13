@@ -1,0 +1,86 @@
+// GTL-Audio-Occlusion: 3D FDTD acoustic wave solver (pressure form, standard 7-point stencil, leapfrog).
+// One probe = one source. Rigid walls use mirrored neighbours (Neumann); cells next to walls lose a little
+// energy per step (crude absorption); the domain border is a sponge layer that models open space.
+
+#include "/Engine/Public/Platform.ush"
+
+uint3 Dims;
+float Lambda2;          // (c dt / dx)^2, <= 1/3 for stability
+uint3 SrcCell;
+float SrcValue;         // Gaussian pulse sample for this step
+float WallLoss;         // per-step loss factor for cells touching a wall
+uint SpongeWidth;
+float SpongeMax;
+
+StructuredBuffer<float> PCur;
+RWStructuredBuffer<float> PPrevNext;   // holds p(t-1) on entry, p(t+1) on exit
+StructuredBuffer<uint> Flags;          // bit 0: solid, bit 1: touches a wall
+
+uint Idx(uint3 c) { return (c.z * Dims.y + c.y) * Dims.x + c.x; }
+
+float Neighbour(uint3 c, int3 o, float centre)
+{
+	int3 n = int3(c) + o;
+	if (any(n < 0) || any(n >= int3(Dims))) return 0.0;        // outside: pressure-release (inside the sponge anyway)
+	uint i = Idx(uint3(n));
+	return (Flags[i] & 1u) ? centre : PCur[i];                  // rigid wall: mirror
+}
+
+[numthreads(8, 8, 4)]
+void StepCS(uint3 c : SV_DispatchThreadID)
+{
+	if (any(c >= Dims)) return;
+	uint i = Idx(c);
+	uint f = Flags[i];
+	if (f & 1u) { PPrevNext[i] = 0.0; return; }
+	float p = PCur[i];
+	float lap = Neighbour(c, int3(1, 0, 0), p) + Neighbour(c, int3(-1, 0, 0), p)
+	          + Neighbour(c, int3(0, 1, 0), p) + Neighbour(c, int3(0, -1, 0), p)
+	          + Neighbour(c, int3(0, 0, 1), p) + Neighbour(c, int3(0, 0, -1), p) - 6.0 * p;
+	float next = 2.0 * p - PPrevNext[i] + Lambda2 * lap;
+	if (f & 2u) next *= WallLoss;
+	// Sponge: quadratic damping ramp towards the domain border (sides and top; the floor is solid).
+	uint dEdge = min(min(c.x, Dims.x - 1 - c.x), min(min(c.y, Dims.y - 1 - c.y), Dims.z - 1 - c.z));
+	if (dEdge < SpongeWidth)
+	{
+		float t = 1.0 - float(dEdge) / float(SpongeWidth);
+		next *= 1.0 - SpongeMax * t * t;
+	}
+	if (all(c == SrcCell)) next += SrcValue;
+	PPrevNext[i] = next;
+}
+
+// Energy envelope at the coarse listener grid: Env[sample * NumBins + bin] += p^2
+uint3 SampleDims;
+uint SampleStride;
+uint Bin;
+uint NumBins;
+StructuredBuffer<float> PNow;
+RWStructuredBuffer<float> Env;
+
+[numthreads(64, 1, 1)]
+void AccumCS(uint3 t : SV_DispatchThreadID)
+{
+	uint s = t.x;
+	uint total = SampleDims.x * SampleDims.y * SampleDims.z;
+	if (s >= total || Bin >= NumBins) return;
+	uint sx = s % SampleDims.x;
+	uint sy = (s / SampleDims.x) % SampleDims.y;
+	uint sz = s / (SampleDims.x * SampleDims.y);
+	uint3 c = uint3(sx, sy, sz) * SampleStride + SampleStride / 2;
+	c = min(c, Dims - 1);
+	float p = PNow[Idx(c)];
+	Env[s * NumBins + Bin] += p * p;
+}
+
+// Horizontal slice at ear height for the wave-field replay.
+uint SliceZ;
+uint Frame;
+RWStructuredBuffer<float> Slices;
+
+[numthreads(8, 8, 1)]
+void SliceCS(uint3 t : SV_DispatchThreadID)
+{
+	if (t.x >= Dims.x || t.y >= Dims.y) return;
+	Slices[Frame * Dims.x * Dims.y + t.y * Dims.x + t.x] = PNow[Idx(uint3(t.x, t.y, SliceZ))];
+}

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 305" width="1000" height="305" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif" font-size="13">
+  <rect width="1000" height="305" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker>
+  </defs>
+  <text x="20" y="24" font-size="15" font-weight="bold">GPU 波动烘焙：离线与运行时</text>
+  <text x="20" y="52" fill="#777">离线（每个探针一次）</text>
+  <g stroke="#555" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M245 101 H261"/><path d="M488 101 H504"/><path d="M731 101 H747"/>
+    <path d="M245 251 H261"/><path d="M488 251 H504"/><path d="M731 251 H747"/>
+  </g>
+  <rect x="20" y="62" width="225" height="78" rx="8" fill="#eef3f8" stroke="#7a8ea6"/>
+  <text x="32" y="86" font-weight="bold">体素化</text>
+  <text x="32" y="106" fill="#333">格子 13.7 cm = c ÷ (5 × 500 Hz)</text>
+  <text x="32" y="124" fill="#333">薄墙加厚到 2 格，门板不算</text>
+  <rect x="263" y="62" width="225" height="78" rx="8" fill="#eef3f8" stroke="#7a8ea6"/>
+  <text x="275" y="86" font-weight="bold">放探针</text>
+  <text x="275" y="106" fill="#333">按房间均匀铺：室内 2.6 m</text>
+  <text x="275" y="124" fill="#333">室外 5 m，门洞两侧各 1 个</text>
+  <rect x="506" y="62" width="225" height="78" rx="8" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="518" y="86" font-weight="bold">FDTD 脉冲（RDG 计算着色器）</text>
+  <text x="518" y="106" fill="#333">7 点模板，Courant 0.5，0.92 s</text>
+  <text x="518" y="124" fill="#333">刚性墙 + 边界吸收层</text>
+  <rect x="749" y="62" width="231" height="78" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="761" y="86" font-weight="bold">55 cm 采样网格记能量包络</text>
+  <text x="761" y="106" fill="#333">首达：超过参考峰值 −50 dB</text>
+  <text x="761" y="124" fill="#333">LDS 取 5 ms+4σ，LER 取至 200 ms</text>
+
+  <text x="20" y="202" fill="#777">运行时（每个声源，15 Hz）</text>
+  <rect x="20" y="212" width="225" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="32" y="236" font-weight="bold">选探针</text>
+  <text x="32" y="256" fill="#333">与听者同房间、能看见听者</text>
+  <text x="32" y="274" fill="#333">最多 3 个，按 1/r² 加权</text>
+  <rect x="263" y="212" width="225" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="275" y="236" font-weight="bold">互易性读值</text>
+  <text x="275" y="256" fill="#333">探针当耳朵，在声源位置三线性</text>
+  <text x="275" y="274" fill="#333">插值读 首达 / LDS / LER</text>
+  <rect x="506" y="212" width="225" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="518" y="236" font-weight="bold">换算成播放参数</text>
+  <text x="518" y="256" fill="#333">额外损失 = 自由场(p) − LDS</text>
+  <text x="518" y="274" fill="#333">湿声 = LER − LDS − 14 dB</text>
+  <rect x="749" y="212" width="231" height="78" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="761" y="236" font-weight="bold">到达方向</text>
+  <text x="761" y="256" fill="#333">沿首达时间梯度从声源往回走</text>
+  <text x="761" y="274" fill="#333">看见听者即停，最后拐点 = 来向</text>
+</svg>

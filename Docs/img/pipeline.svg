@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif" font-size="13">
+  <rect width="960" height="400" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker>
+  </defs>
+  <text x="20" y="24" font-size="15" font-weight="bold">运行时数据流</text>
+  <g stroke="#555" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M200 90 H246"/>
+    <path d="M440 90 H486"/>
+    <path d="M590 140 V176"/>
+    <path d="M540 240 L130 276"/>
+    <path d="M590 240 V276"/>
+    <path d="M640 240 L850 276"/>
+  </g>
+  <rect x="20" y="40" width="180" height="100" rx="8" fill="#eef3f8" stroke="#7a8ea6"/>
+  <text x="34" y="64" font-weight="bold">场景几何</text>
+  <text x="34" y="86" fill="#333">Acoustic 碰撞通道</text>
+  <text x="34" y="104" fill="#333">房间盒 AAcousticRoom</text>
+  <text x="34" y="122" fill="#333">门洞 AAcousticPortal</text>
+
+  <rect x="250" y="40" width="190" height="100" rx="8" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="264" y="64" font-weight="bold">每个声源求解（15 Hz）</text>
+  <text x="264" y="86" fill="#333">多射线、门户路径、衍射</text>
+  <text x="264" y="104" fill="#333">透射、波动烘焙查询</text>
+  <text x="264" y="122" fill="#333">或读 Steam Audio 结果</text>
+
+  <rect x="490" y="40" width="200" height="100" rx="8" fill="#fff4e6" stroke="#d08a2e"/>
+  <text x="504" y="64" font-weight="bold">FAcousticResult</text>
+  <text x="504" y="86" fill="#333">路径增益（三个频段，dB）</text>
+  <text x="504" y="104" fill="#333">虚拟声源位置、透射增益</text>
+  <text x="504" y="122" fill="#333">湿声电平、所在房间</text>
+
+  <rect x="490" y="180" width="200" height="60" rx="8" fill="#f2f2f2" stroke="#888"/>
+  <text x="504" y="204" font-weight="bold">时间平滑</text>
+  <text x="504" y="224" fill="#333">dB 一阶 τ=0.2 s，方位角滑动</text>
+
+  <rect x="20" y="280" width="220" height="58" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="34" y="302" font-weight="bold">路径声部</text>
+  <text x="34" y="322" fill="#333">放在虚拟声源处</text>
+  <rect x="490" y="280" width="200" height="58" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="504" y="302" font-weight="bold">透射声部</text>
+  <text x="504" y="322" fill="#333">真实位置，与路径按能量相加</text>
+  <rect x="740" y="280" width="200" height="58" rx="8" fill="#e9f6ef" stroke="#3c9a6a"/>
+  <text x="754" y="302" font-weight="bold">Steam 声部</text>
+  <text x="754" y="322" fill="#333">Steam 遮挡插件直接处理</text>
+
+  <rect x="20" y="352" width="920" height="36" rx="6" fill="#f7eefa" stroke="#9b62b5"/>
+  <text x="34" y="375" fill="#333">每个声部：中频 → 音量，低/高频 → 源效果 EQ，深度高切 → 低通 ｜ Steam HRTF 空间化 → 主混音 ｜ 湿声 → 声源所在房间的混响子混音</text>
+</svg>
