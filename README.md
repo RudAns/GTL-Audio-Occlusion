@@ -125,3 +125,12 @@ Tools                    生成声音、导入资产、重建关卡、自测截�
 - Steam Audio 只启用了直达路径的遮挡与透射，没有烘焙它的 pathing 探针，所以 Steam Audio 模式下关门后声音不会绕门传来。第 6 组 B 方案用自研门户路径补上这一部分。
 - UE 5.8 对 HRTF 声源的“距离衰减前”子混音发送会读错缓冲区（单声道缓冲按双声道读取），产生 NaN 并让整个混音静音。本工程改为距离衰减后发送，再除回距离增益，效果等价。
 - 美术资源来自 UE 官方示例内容（ArchVis、关卡原型、角色模板）。
+
+## 许可证
+
+本仓库自己编写的代码、脚本、着色器、文档和截图以 [MIT 许可证](LICENSE) 发布。下列第三方内容不在 MIT 范围内，仍按各自的许可使用：
+
+- Steam Audio 插件（`Plugins/SteamAudio`）：Valve Corporation，Apache License 2.0，许可证原文在 `Plugins/SteamAudio/LICENSE`。
+- 角色、关卡原型与建筑场景（`Content/Characters`、`Content/LevelPrototyping`、`Content/ArchVis`、`Content/Building`、`Content/Variant_Horror`、`Content/XRFramework`、`Content/Input`）：Epic Games 随引擎模板提供的示例内容（EULA 中的 Examples），按 Unreal Engine EULA 可随项目再分发，版权归 Epic Games 所有。
+- 单次脚步声（`SourceAssets/Audio/Raw/Footstep_Rock_Land01.wav` 及由它处理得到的 `SW_Step`）：取自 UE 引擎插件 NetworkPredictionExtras 自带的录音，属于引擎内容，按 Unreal Engine EULA 使用。其余循环声音由 `Tools/gen_sounds.py` 生成，属于本仓库。
+- Unreal Engine 5.8：打开、编译和运行本工程需遵守 [Unreal Engine EULA](https://www.unrealengine.com/eula/unreal)。
