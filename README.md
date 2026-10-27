@@ -1,8 +1,24 @@
+<div align="center">
+
 # 游戏中的声音遮挡、阻挡与衍射
 
-从射线检测到房间—门户传播：技术调研 + UE 5.8 可交互复现。
+**房间—门户传播 · 多射线阻挡 · 超额程差衍射 · 分频透射 · Steam Audio HRTF · GPU 波动场烘焙**<br>
+从射线检测到房间—门户传播，让墙后、门外、楼上的声音按真实路径衰减和定位：技术调研 + UE 5.8 可交互复现
+
+<a href="LICENSE"><img alt="license MIT" src="https://img.shields.io/badge/license-MIT-0a7bbb"></a>
+<img alt="引擎 UE 5.8" src="https://img.shields.io/badge/%E5%BC%95%E6%93%8E-UE_5.8-313131?logo=unrealengine">
+<img alt="代码 C++ · HLSL" src="https://img.shields.io/badge/%E4%BB%A3%E7%A0%81-C%2B%2B_%C2%B7_HLSL-00599c">
+<a href="Docs/Research.html"><img alt="调研 65 篇文献" src="https://img.shields.io/badge/%E8%B0%83%E7%A0%94-65_%E7%AF%87%E6%96%87%E7%8C%AE-e05d44"></a>
+<img alt="手游 可行" src="https://img.shields.io/badge/%E6%89%8B%E6%B8%B8-%E5%8F%AF%E8%A1%8C-2ea44f">
+<img alt="耳机 推荐" src="https://img.shields.io/badge/%E8%80%B3%E6%9C%BA-%E6%8E%A8%E8%8D%90-8a2be2">
+
+[📥 下载调研报告](Docs/Research.html) · [📥 下载落地文档](Docs/Implementation.html) · [🎮 运行 Demo](#ue-58-可交互-demo) · [⌨️ 操作说明](#操作)
+
+<br>
 
 [![调研报告封面](Docs/shots/00_research_cover.png)](Docs/Research.html)
+
+</div>
 
 ## 调研报告
 
