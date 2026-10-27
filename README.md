@@ -12,7 +12,7 @@
 <img alt="手游 可行" src="https://img.shields.io/badge/%E6%89%8B%E6%B8%B8-%E5%8F%AF%E8%A1%8C-2ea44f">
 <img alt="耳机 推荐" src="https://img.shields.io/badge/%E8%80%B3%E6%9C%BA-%E6%8E%A8%E8%8D%90-8a2be2">
 
-[📥 下载调研报告](Docs/Research.html) · [📥 下载落地文档](Docs/Implementation.html) · [🎮 运行 Demo](#ue-58-可交互-demo) · [⌨️ 操作说明](#操作)
+[📥 下载调研报告](Docs/Research.html) · [📥 下载落地文档](Docs/Implementation.html)
 
 <br>
 
